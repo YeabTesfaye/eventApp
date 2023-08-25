@@ -1,9 +1,10 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import colors from 'colors';
-import { graphqlHTTP } from 'express-graphql';
-import { buildSchema } from 'graphql';
-
+import express from "express";
+import dotenv from "dotenv";
+import colors from "colors";
+import { graphqlHTTP } from "express-graphql";
+import { buildSchema } from "graphql";
+import { connectDB } from "./config/db.js";
+import { Event } from "./model/event.js";
 dotenv.config();
 const PORT = process.env.PORT || 5000; // Use logical OR operator
 
@@ -11,7 +12,7 @@ const app = express();
 const events = [];
 
 app.use(
-  '/graphql',
+  "/graphql",
   graphqlHTTP({
     schema: buildSchema(`
       type Event {
@@ -43,25 +44,33 @@ app.use(
       }
     `),
     rootValue: {
-      events: () => {
-        return events; // Return the actual events array
+      events: async() => {
+       return await Event.find({})
       },
-      createEvent: ({ eventInput }) => {
-        const event = {
-          _id: Math.random().toString(), // Correct the method call
-          title: eventInput.title, // Destructure the eventInput
+      createEvent: async ({ eventInput }) => {
+        const event = new Event({
+          title: eventInput.title,
           description: eventInput.description,
           price: +eventInput.price,
-          date: new Date().toISOString(),
-        };
-        events.push(event);
-        return event;
+          date: new Date(eventInput.date),
+        });
+      
+        try {
+          const savedEvent = await event.save();
+          return savedEvent;
+        } catch (error) {
+          throw error;
+        }
       },
+      
     },
     graphiql: true,
   })
 );
 
 app.listen(PORT, () => {
-  console.log(`The server is listening at ${`http://localhost:${PORT}/`.cyan.underline.bold}`);
+  console.log(
+    ` listening at ${`http://localhost:${PORT}/`.cyan.underline.bold}`
+  );
+  connectDB();
 });
